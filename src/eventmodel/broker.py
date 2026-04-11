@@ -11,7 +11,9 @@ type RouteMap = dict[str, Callable[[dict], Awaitable[list[tuple[str, bytes]] | N
 class Broker(Protocol):
     async def publish(self, topic: str, message: bytes) -> None: ...
 
-    async def listen(self, routes: RouteMap) -> None: ...
+    async def listen(self, routes: RouteMap, exit_on_idle: bool = False) -> None: ...
+
+    async def wait_until_idle(self) -> None: ...
 
     async def stop(self) -> None: ...
 
@@ -28,7 +30,7 @@ class AsyncioBroker:
     async def publish(self, topic: str, message: bytes) -> None:
         await self.queue.put((topic, message))
 
-    async def listen(self, routes: RouteMap) -> None:
+    async def listen(self, routes: RouteMap, exit_on_idle: bool = False) -> None:
         """
         Continuously consume events from the queue and route them.
         """
@@ -68,6 +70,16 @@ class AsyncioBroker:
         for _ in range(3):
             task = asyncio.create_task(worker())
             self.tasks.append(task)
+
+        if exit_on_idle:
+            await self.wait_until_idle()
+            await self.stop()
+
+    async def wait_until_idle(self) -> None:
+        """
+        Blocks until all items in the queue have been processed.
+        """
+        await self.queue.join()
 
     async def stop(self) -> None:
         """

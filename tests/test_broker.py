@@ -60,7 +60,9 @@ async def test_asyncio_broker_publish_emits_returned_events():
     await broker.stop()
 
 
-async def test_asyncio_broker_handles_unregistered_topic(caplog: pytest.LogCaptureFixture):
+async def test_asyncio_broker_handles_unregistered_topic(
+    caplog: pytest.LogCaptureFixture,
+):
     broker = AsyncioBroker()
 
     routes: RouteMap = {}

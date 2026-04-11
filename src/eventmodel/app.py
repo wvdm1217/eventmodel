@@ -1,6 +1,7 @@
 import asyncio
 
 from eventmodel.broker import AsyncioBroker, Broker
+from eventmodel.logger import logger
 from eventmodel.service import Service
 
 
@@ -27,7 +28,7 @@ class App(Service):
                     f"Routing collision: A handler is already registered for topic '{topic}'"
                 )
             self.routes[topic] = wrapper
-            print(f"[APP BOOT] Mounted listener for: '{topic}'")
+            logger.info(f"Mounted listener for: '{topic}'")
 
     async def publish(self, event) -> None:
         """
@@ -38,13 +39,20 @@ class App(Service):
             raise ValueError(f"Event '{event.__class__.__name__}' is missing a topic.")
         await self.broker.publish(target_topic, event.to_message_payload())
 
-    async def run(self) -> None:
+    async def run(self, exit_on_idle: bool = False) -> None:
         """
         Start the broker listener loop and all included services in the background.
         """
-        print("[APP] Starting event listener loop and services...")
-        tasks = [self.broker.listen(self.routes)]
+        logger.info("Starting event listener loop and services...")
+        tasks = [self.broker.listen(self.routes, exit_on_idle=exit_on_idle)]
         for service in self._included_services:
             tasks.append(service.run())
 
         await asyncio.gather(*tasks)
+
+    async def wait_until_idle(self) -> None:
+        """
+        Wait until the broker has processed all current messages.
+        """
+        if hasattr(self.broker, "wait_until_idle"):
+            await self.broker.wait_until_idle()

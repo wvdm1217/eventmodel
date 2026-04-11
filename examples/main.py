@@ -1,33 +1,27 @@
-import asyncio
+from events import OrderPlaced
+from services import ecommerce_app
+
 from eventmodel import App
-from services import app as users_app
-from events import UserCreated
+from eventmodel.logger import logger
 
-# 1. Initialize Root App
 app = App()
-
-# 2. Mount domain services
-app.include(users_app)
+app.include(ecommerce_app)
 
 
-# --- Simulation for testing ---
-async def simulate_incoming_message():
-    print("\n--- Simulating Incoming Message ---")
+async def main():
+    logger.info("--- Starting E-Commerce Event-Driven Pipeline ---")
 
-    # 1. Start the application listener in the background
-    listener_task = asyncio.create_task(app.run())
-
-    # 2. We publish a new user event, which will be routed to the correct handler
-    event = UserCreated(user_id=42, email="test@example.com")
+    event = OrderPlaced(order_id="ORD-9921", customer_id="CUST-ALPHA", amount=149.99)
+    logger.info(f"[External] Publishing OrderPlaced event for {event.order_id}...")
     await app.publish(event)
 
-    # 3. Give it a moment to process before shutting down
-    await asyncio.sleep(0.1)
+    # Process all messages in the queue and exit when idle
+    await app.run(exit_on_idle=True)
 
-    # 4. Gracefully stop the listener
-    await app.broker.stop()
-    listener_task.cancel()
+    logger.info("--- Shutting Down ---")
 
 
 if __name__ == "__main__":
-    asyncio.run(simulate_incoming_message())
+    import asyncio
+
+    asyncio.run(main())

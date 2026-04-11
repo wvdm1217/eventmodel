@@ -108,5 +108,17 @@ async def test_app_run():
     # so it will return immediately. service.run() is also a mock.
     await app.run()
 
-    mock_broker.listen.assert_called_once_with(app.routes)
+    mock_broker.listen.assert_called_once_with(app.routes, exit_on_idle=False)
     assert service.run_called
+
+
+@pytest.mark.asyncio
+async def test_app_run_exit_on_idle():
+    mock_broker = MagicMock(spec=Broker)
+    mock_broker.listen = AsyncMock()
+
+    app = App(broker=mock_broker)
+
+    await app.run(exit_on_idle=True)
+
+    mock_broker.listen.assert_called_once_with(app.routes, exit_on_idle=True)
