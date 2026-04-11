@@ -7,7 +7,9 @@ authors = [
     { name = "Werner van der Merwe", email = "wvdm1217@gmail.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pydantic>=2.12.5",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.6,<0.12.0"]
