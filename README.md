@@ -1,5 +1,9 @@
-# eventmodel
+# EventModel
 
+[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydantic/pydantic/main/docs/badge/v2.json)](https://pydantic.dev)
 [![Tests](https://github.com/wvdm1217/eventmodel/actions/workflows/test.yml/badge.svg)](https://github.com/wvdm1217/eventmodel/actions/workflows/test.yml)
 [![Pytest](https://img.shields.io/badge/tested_with-pytest-blue.svg)](https://docs.pytest.org/)
 
