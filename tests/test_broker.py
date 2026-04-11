@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -20,7 +21,7 @@ async def test_asyncio_broker_publish_and_listen():
     routes: RouteMap = {"test.topic": handler}
 
     # Start workers
-    await broker.listen(routes)
+    listen_task = asyncio.create_task(broker.listen(routes))
 
     # Publish message
     await broker.publish("test.topic", json.dumps({"key": "value"}).encode())
@@ -33,6 +34,7 @@ async def test_asyncio_broker_publish_and_listen():
 
     # Cleanup
     await broker.stop()
+    listen_task.cancel()
 
 
 async def test_asyncio_broker_publish_emits_returned_events():
@@ -49,7 +51,7 @@ async def test_asyncio_broker_publish_emits_returned_events():
 
     routes: RouteMap = {"test.topic.a": handler_a, "test.topic.b": handler_b}
 
-    await broker.listen(routes)
+    listen_task = asyncio.create_task(broker.listen(routes))
     await broker.publish("test.topic.a", json.dumps({"key": "value"}).encode())
 
     await broker.queue.join()
@@ -58,6 +60,7 @@ async def test_asyncio_broker_publish_emits_returned_events():
     assert published_events[0] == {"forwarded": True}
 
     await broker.stop()
+    listen_task.cancel()
 
 
 async def test_asyncio_broker_handles_unregistered_topic(
@@ -66,7 +69,7 @@ async def test_asyncio_broker_handles_unregistered_topic(
     broker = AsyncioBroker()
 
     routes: RouteMap = {}
-    await broker.listen(routes)
+    listen_task = asyncio.create_task(broker.listen(routes))
 
     with caplog.at_level(logging.WARNING):
         await broker.publish("unknown.topic", b"{}")
@@ -75,6 +78,7 @@ async def test_asyncio_broker_handles_unregistered_topic(
     assert "No handler registered for topic: 'unknown.topic'" in caplog.text
 
     await broker.stop()
+    listen_task.cancel()
 
 
 async def test_asyncio_broker_handles_malformed_json(caplog: pytest.LogCaptureFixture):
@@ -84,7 +88,7 @@ async def test_asyncio_broker_handles_malformed_json(caplog: pytest.LogCaptureFi
         return None
 
     routes: RouteMap = {"test.topic": dummy_handler}
-    await broker.listen(routes)
+    listen_task = asyncio.create_task(broker.listen(routes))
 
     with caplog.at_level(logging.ERROR):
         await broker.publish("test.topic", b"not-json")
@@ -93,3 +97,4 @@ async def test_asyncio_broker_handles_malformed_json(caplog: pytest.LogCaptureFi
     assert "Malformed JSON payload for topic 'test.topic'" in caplog.text
 
     await broker.stop()
+    listen_task.cancel()

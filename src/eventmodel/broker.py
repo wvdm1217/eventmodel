@@ -74,6 +74,11 @@ class AsyncioBroker:
         if exit_on_idle:
             await self.wait_until_idle()
             await self.stop()
+        else:
+            try:
+                await asyncio.gather(*self.tasks)
+            except asyncio.CancelledError:
+                pass
 
     async def wait_until_idle(self) -> None:
         """
