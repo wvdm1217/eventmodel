@@ -1,5 +1,7 @@
-from pydantic import BaseModel, ConfigDict
 from typing import ClassVar, Optional
+
+from pydantic import BaseModel, ConfigDict
+
 
 class EventModel(BaseModel):
     """
@@ -10,7 +12,7 @@ class EventModel(BaseModel):
     
     model_config = ConfigDict(strict=True)
 
-    def __init_subclass__(cls, topic: str = None, **kwargs):
+    def __init_subclass__(cls, topic: str | None = None, **kwargs):
         # Pass remaining kwargs up to Pydantic's BaseModel
         super().__init_subclass__(**kwargs) 
         

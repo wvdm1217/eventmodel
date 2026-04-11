@@ -1,6 +1,7 @@
 import asyncio
 from eventmodel import App
 from services import app as users_app
+from events import UserCreated
 
 # 1. Initialize Root App
 app = App()
@@ -12,14 +13,19 @@ app.include(users_app)
 async def simulate_incoming_message():
     print("\n--- Simulating Incoming Message ---")
     
-    # 1. We receive raw JSON/Dict from Kafka/Redis on the "user.events.created" topic
-    incoming_topic = "user.events.created"
-    raw_payload = {"user_id": 42, "email": "test@example.com"}
+    # 1. Start the application listener in the background
+    listener_task = asyncio.create_task(app.run())
     
-    # 2. The framework looks up the wrapper and passes the raw payload
-    handler_wrapper = app.routes.get(incoming_topic)
-    if handler_wrapper:
-        await handler_wrapper(raw_payload)
+    # 2. We publish a new user event, which will be routed to the correct handler
+    event = UserCreated(user_id=42, email="test@example.com")
+    await app.publish(event)
+    
+    # 3. Give it a moment to process before shutting down
+    await asyncio.sleep(0.1)
+    
+    # 4. Gracefully stop the listener
+    await app.broker.stop()
+    listener_task.cancel()
 
 if __name__ == "__main__":
     asyncio.run(simulate_incoming_message())

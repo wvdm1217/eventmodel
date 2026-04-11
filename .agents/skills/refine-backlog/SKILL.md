@@ -26,7 +26,7 @@ This skill guides the agent through refining and maintaining the `BACKLOG.md` fi
 
 3. **Triage and Prioritize**
    - Organize the remaining backlog items.
-   - **Crucial**: Always ask the user to confirm or set priorities for the items before finalizing the update.
+   - Assign logical priorities (High, Medium, Low) to the items automatically based on architectural importance and the current project state.
 
 4. **Identify Gaps and Add Items**
    - Compare the codebase's current state against the intended project functionality.

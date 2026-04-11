@@ -1,8 +1,10 @@
 import inspect
+from typing import Callable
+
 from pydantic import validate_call
-from typing import Callable, Any
 
 from eventmodel.models import EventModel
+
 
 class Service:
     """
@@ -11,6 +13,13 @@ class Service:
     def __init__(self):
         # Maps topics (strings) to their async wrapper functions
         self.routes: dict[str, Callable] = {}
+
+    async def run(self) -> None:
+        """
+        Background task hook for the service.
+        Can be overridden by subclasses to run background workers.
+        """
+        pass
 
     def service(self):
         """
@@ -23,12 +32,12 @@ class Service:
             parameters = list(sig.parameters.values())
             
             if len(parameters) != 1:
-                raise ValueError(f"Handler '{func.__name__}' must take exactly one argument.")
+                raise ValueError(f"Handler '{getattr(func, '__name__', str(func))}' must take exactly one argument.")
                 
             input_type = parameters[0].annotation
             
             if input_type is inspect.Parameter.empty or not isinstance(input_type, type) or not issubclass(input_type, EventModel):
-                raise TypeError(f"Input to '{func.__name__}' must be type-hinted with a subclass of EventModel.")
+                raise TypeError(f"Input to '{getattr(func, '__name__', str(func))}' must be type-hinted with a subclass of EventModel.")
                 
             subscribe_to = getattr(input_type, "__topic__", None)
             if not subscribe_to:
@@ -38,7 +47,7 @@ class Service:
             validated_func = validate_call(func)
 
             # 3. Create the execution wrapper
-            async def wrapper(raw_message_data: dict) -> None:
+            async def wrapper(raw_message_data: dict) -> list[tuple[str, bytes]] | None:
                 # Execute domain logic
                 event_instance = input_type(**raw_message_data)
                 result = await validated_func(event_instance)
@@ -46,6 +55,7 @@ class Service:
                 # Intercept return and handle fan-out emission
                 if result:
                     events = result if isinstance(result, (tuple, list)) else (result,)
+                    emitted = []
                     
                     for event_obj in events:
                         if not isinstance(event_obj, EventModel):
@@ -56,9 +66,10 @@ class Service:
                             raise ValueError(f"Returned Event '{event_obj.__class__.__name__}' is missing a topic.")
                             
                         payload = event_obj.to_message_payload()
+                        emitted.append((target_topic, payload))
                         
-                        # TODO: Replace print with actual broker publish logic
-                        print(f"[BROKER EMIT] -> Topic: '{target_topic}' | Payload: {payload.decode()}")
+                    return emitted
+                return None
 
             # 4. Register the route
             self.routes[subscribe_to] = wrapper
