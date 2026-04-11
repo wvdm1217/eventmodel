@@ -9,11 +9,12 @@ class App(Service):
     The root application that orchestrates the message broker client
     and merges all sub-services together.
     """
+
     def __init__(self, broker: Broker | None = None):
         super().__init__()
         self.broker = broker or AsyncioBroker()
         self._included_services: list[Service] = []
-        
+
     def include(self, service: Service) -> None:
         """
         Merges a sub-service's routes into the main application.
@@ -45,5 +46,5 @@ class App(Service):
         tasks = [self.broker.listen(self.routes)]
         for service in self._included_services:
             tasks.append(service.run())
-        
+
         await asyncio.gather(*tasks)

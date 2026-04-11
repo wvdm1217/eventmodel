@@ -9,7 +9,7 @@
 We use `uv` as our primary package and project manager. Agents should use these commands for tasks:
 - **Run Examples**: `uv run examples/<filename>.py`
 - **Linting & Formatting**: `uv run ruff check` and `uv run ruff format`
-- **Type Checking**: `uv run ty`
+- **Type Checking**: `uv run ty check`
 - **Testing**: `uv run pytest`
 
 ## Code Style & Conventions
