@@ -1,8 +1,10 @@
 import inspect
+import json
 from typing import Callable
 
 from pydantic import validate_call
 
+from eventmodel import tracing
 from eventmodel.models import EventModel
 
 
@@ -60,32 +62,45 @@ class Service:
 
             # 3. Create the execution wrapper
             async def wrapper(raw_message_data: dict) -> list[tuple[str, bytes]] | None:
-                # Execute domain logic
-                event_instance = input_type(**raw_message_data)
-                result = await validated_func(event_instance)
+                # Extract OTel trace context propagated from the producer (no-op
+                # when OTel is not installed).  The __otel__ key is popped so the
+                # remaining dict is a clean EventModel payload.
+                ctx = tracing.extract_context(raw_message_data)
 
-                # Intercept return and handle fan-out emission
-                if result:
-                    events = result if isinstance(result, (tuple, list)) else (result,)
-                    emitted = []
+                with tracing.trace_handler(subscribe_to, getattr(func, "__name__", str(func)), ctx):
+                    # Execute domain logic
+                    event_instance = input_type(**raw_message_data)
+                    result = await validated_func(event_instance)
 
-                    for event_obj in events:
-                        if not isinstance(event_obj, EventModel):
-                            raise TypeError(
-                                f"Returned object {type(event_obj)} is not an EventModel."
+                    # Intercept return and handle fan-out emission
+                    if result:
+                        events = (
+                            result if isinstance(result, (tuple, list)) else (result,)
+                        )
+                        emitted = []
+
+                        for event_obj in events:
+                            if not isinstance(event_obj, EventModel):
+                                raise TypeError(
+                                    f"Returned object {type(event_obj)} is not an EventModel."
+                                )
+
+                            target_topic = getattr(event_obj, "__topic__", None)
+                            if not target_topic:
+                                raise ValueError(
+                                    f"Returned Event '{event_obj.__class__.__name__}' is missing a topic."
+                                )
+
+                            # Propagate current span context to downstream handlers.
+                            data = event_obj.model_dump()
+                            tracing.inject_context(data)
+                            payload = json.dumps(data, separators=(",", ":")).encode(
+                                "utf-8"
                             )
+                            emitted.append((target_topic, payload))
 
-                        target_topic = getattr(event_obj, "__topic__", None)
-                        if not target_topic:
-                            raise ValueError(
-                                f"Returned Event '{event_obj.__class__.__name__}' is missing a topic."
-                            )
-
-                        payload = event_obj.to_message_payload()
-                        emitted.append((target_topic, payload))
-
-                    return emitted
-                return None
+                        return emitted
+                    return None
 
             # 4. Register the route
             self.routes[subscribe_to] = wrapper

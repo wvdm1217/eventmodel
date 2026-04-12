@@ -1,5 +1,7 @@
 import asyncio
+import json
 
+from eventmodel import tracing
 from eventmodel.broker import AsyncioBroker, Broker
 from eventmodel.logger import logger
 from eventmodel.service import Service
@@ -37,7 +39,13 @@ class App(Service):
         target_topic = getattr(event, "__topic__", None)
         if not target_topic:
             raise ValueError(f"Event '{event.__class__.__name__}' is missing a topic.")
-        await self.broker.publish(target_topic, event.to_message_payload())
+        # Inject the current OTel trace context so downstream service handlers
+        # can attach their spans as children of the active trace.
+        data = event.model_dump()
+        tracing.inject_context(data)
+        await self.broker.publish(
+            target_topic, json.dumps(data, separators=(",", ":")).encode("utf-8")
+        )
 
     async def run(self, exit_on_idle: bool = False) -> None:
         """
