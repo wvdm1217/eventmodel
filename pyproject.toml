@@ -1,5 +1,5 @@
 [project]
-name = "eventmodel"
+name = "python-eventmodel"
 version = "0.0.0-alpha.1"
 description = "Build type-safe, event-driven Python apps with zero boilerplate."
 readme = "README.md"
