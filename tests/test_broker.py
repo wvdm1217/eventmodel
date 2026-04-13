@@ -4,7 +4,8 @@ import logging
 
 import pytest
 
-from eventmodel.broker import AsyncioBroker, RouteMap
+from eventmodel.broker import RouteMap
+from eventmodel.brokers.asyncio_broker import AsyncioBroker
 
 pytestmark = pytest.mark.asyncio
 

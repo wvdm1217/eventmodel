@@ -1,6 +1,6 @@
 import asyncio
 
-from eventmodel.broker import AsyncioBroker, Broker
+from eventmodel.broker import Broker
 from eventmodel.logger import logger
 from eventmodel.service import Service
 
@@ -11,9 +11,22 @@ class App(Service):
     and merges all sub-services together.
     """
 
-    def __init__(self, broker: Broker | None = None):
+    def __init__(self, broker: Broker | str | None = None):
         super().__init__()
-        self.broker = broker or AsyncioBroker()
+
+        if broker == "NATS":
+            from eventmodel.brokers.nats_broker import NatsBroker
+
+            self.broker = NatsBroker()
+        elif broker == "asyncio" or broker is None:
+            from eventmodel.brokers.asyncio_broker import AsyncioBroker
+
+            self.broker = AsyncioBroker()
+        elif isinstance(broker, str):
+            raise ValueError(f"Unknown broker type: {broker}")
+        else:
+            self.broker = broker
+
         self._included_services: list[Service] = []
 
     def include(self, service: Service) -> None:
