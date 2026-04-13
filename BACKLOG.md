@@ -9,3 +9,4 @@
 | Low | Error Handling | Implement Error Handling and Dead Letter Queue (DLQ) support in service wrapper | Draft |
 | Low | Error Handling | Add support for automatic retries with exponential backoff on event processing failures | Draft |
 | Low | Core Framework | Add static return-type validation in the `@service` decorator | Draft |
+| Medium | CI/CD | Add GitHub Action to publish the Python package | Completed |
