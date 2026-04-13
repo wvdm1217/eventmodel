@@ -12,7 +12,7 @@ Build type-safe, event-driven Python apps with zero boilerplate. Inspired by Fas
 ## Installation
 
 ```bash
-uv add eventmodel
+uv add python-eventmodel
 ```
 
 ## Quick Start
