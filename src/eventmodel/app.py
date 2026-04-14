@@ -139,9 +139,33 @@ class App(Service):
 
         from eventmodel.models import StopEvent, SystemEvent
 
+        def is_system_handler(handler: Callable) -> bool:
+            try:
+                params = list(inspect.signature(handler).parameters.values())
+            except (TypeError, ValueError):
+                return False
+
+            if not params:
+                return False
+
+            event_annotation = params[0].annotation
+            if event_annotation is inspect.Signature.empty:
+                return False
+
+            try:
+                return issubclass(event_annotation, SystemEvent)
+            except TypeError:
+                return False
+
         broker_routes = {}
         for topic, handler in self.routes.items():
-            if not topic.startswith("__sys."):
+            handler_is_system = is_system_handler(handler)
+            if topic.startswith("__sys.") and not handler_is_system:
+                raise ValueError(
+                    f"Topic prefix '__sys.' is reserved for system event routes: {topic}"
+                )
+
+            if not handler_is_system:
                 def make_wrapper(orig_handler):
                     async def broker_wrapper(payload):
                         emitted_events = await orig_handler(payload)
