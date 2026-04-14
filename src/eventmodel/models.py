@@ -29,7 +29,7 @@ class EventModel(BaseModel):
 class SystemEvent(EventModel):
     """
     Base class for all internal system events.
-    These events are processed locally by the Python application 
+    These events are processed locally by the Python application
     and do not get published to the external message broker.
     """
     __topic__: ClassVar[Optional[str]] = None
