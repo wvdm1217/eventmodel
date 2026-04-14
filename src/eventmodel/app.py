@@ -75,11 +75,11 @@ class App(Service):
                 if isinstance(topic, str):
                     handler = self.routes.get(topic)
 
+                has_stop = False
                 if handler:
                     payload = event_obj.model_dump()
                     emitted_events = await handler(payload)
 
-                    has_stop = False
                     if emitted_events:
                         for target_topic, payload_bytes, out_event_obj in emitted_events:
                             if isinstance(out_event_obj, StopEvent):
