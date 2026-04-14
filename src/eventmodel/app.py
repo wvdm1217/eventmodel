@@ -61,22 +61,24 @@ class App(Service):
             await self.broker.publish(target_topic, event.to_message_payload())
 
     async def _system_event_loop(self):
-        import json
-
         from eventmodel.models import AlwaysEvent, StopEvent, SystemEvent
-        
+
         while True:
             try:
                 event_obj = await self.system_queue.get()
+            except asyncio.CancelledError:
+                break
+
+            try:
                 topic = getattr(event_obj, "__topic__", None)
                 handler = None
                 if isinstance(topic, str):
                     handler = self.routes.get(topic)
-                
+
                 if handler:
-                    payload = json.loads(event_obj.to_message_payload().decode())
+                    payload = event_obj.model_dump()
                     emitted_events = await handler(payload)
-                    
+
                     has_stop = False
                     if emitted_events:
                         for target_topic, payload_bytes, out_event_obj in emitted_events:
@@ -87,15 +89,15 @@ class App(Service):
                                 await self.system_queue.put(out_event_obj)
                             else:
                                 await self.publish(out_event_obj)
-                    
+
                     if isinstance(event_obj, AlwaysEvent) and not has_stop:
                         await self.system_queue.put(AlwaysEvent())
-                
-                self.system_queue.task_done()
             except asyncio.CancelledError:
                 break
             except Exception:
                 logger.exception("Error processing system event")
+            finally:
+                self.system_queue.task_done()
 
     async def _run_loop(self, loop_func: Callable):
         from eventmodel.models import StopEvent
