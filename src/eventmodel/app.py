@@ -1,4 +1,6 @@
 import asyncio
+import inspect
+from typing import Callable
 
 from eventmodel.broker import Broker
 from eventmodel.logger import logger
@@ -13,6 +15,7 @@ class App(Service):
 
     def __init__(self, broker: Broker | str | None = None):
         super().__init__()
+        self.system_queue: asyncio.Queue = asyncio.Queue()
 
         if broker == "NATS":
             from eventmodel.brokers.nats_broker import NatsBroker
@@ -47,21 +50,161 @@ class App(Service):
         """
         Manually publish an event to the broker.
         """
+        from eventmodel.models import SystemEvent
+
         target_topic = getattr(event, "__topic__", None)
         if not target_topic:
             raise ValueError(f"Event '{event.__class__.__name__}' is missing a topic.")
-        await self.broker.publish(target_topic, event.to_message_payload())
+
+        if isinstance(event, SystemEvent):
+            await self.system_queue.put(event)
+        else:
+            await self.broker.publish(target_topic, event.to_message_payload())
+
+    async def _system_event_loop(self):
+        from eventmodel.models import AlwaysEvent, StopEvent, SystemEvent
+
+        while True:
+            try:
+                event_obj = await self.system_queue.get()
+            except asyncio.CancelledError:
+                break
+
+            try:
+                topic = getattr(event_obj, "__topic__", None)
+                handler = None
+                if isinstance(topic, str):
+                    handler = self.routes.get(topic)
+
+                has_stop = False
+                if handler:
+                    payload = event_obj.model_dump()
+                    emitted_events = await handler(payload)
+
+                    if emitted_events:
+                        for (
+                            target_topic,
+                            payload_bytes,
+                            out_event_obj,
+                        ) in emitted_events:
+                            if isinstance(out_event_obj, StopEvent):
+                                await self.stop()
+                                has_stop = True
+                            elif isinstance(out_event_obj, SystemEvent):
+                                await self.system_queue.put(out_event_obj)
+                            else:
+                                await self.publish(out_event_obj)
+
+                if isinstance(event_obj, AlwaysEvent) and not has_stop:
+                    await self.system_queue.put(AlwaysEvent())
+
+            except Exception:
+                logger.exception("Error processing system event")
+            finally:
+                self.system_queue.task_done()
+
+    async def _run_loop(self, loop_func: Callable):
+        from eventmodel.models import StopEvent
+
+        try:
+            if inspect.isasyncgenfunction(loop_func):
+                async for event in loop_func():
+                    if isinstance(event, StopEvent):
+                        await self.stop()
+                        break
+                    await self.publish(event)
+            else:
+                await loop_func()
+        except asyncio.CancelledError:
+            pass
 
     async def run(self, exit_on_idle: bool = False) -> None:
         """
         Start the broker listener loop and all included services in the background.
         """
         logger.info("Starting event listener loop and services...")
-        tasks = [self.broker.listen(self.routes, exit_on_idle=exit_on_idle)]
-        for service in self._included_services:
-            tasks.append(service.run())
+        self._loop_tasks = []
 
-        await asyncio.gather(*tasks)
+        # Start system event loop
+        self._loop_tasks.append(asyncio.create_task(self._system_event_loop()))
+
+        # Fire StartEvent automatically
+        from eventmodel.models import StartEvent
+
+        await self.system_queue.put(StartEvent())
+
+        for service in self._included_services + [self]:
+            if hasattr(service, "loops"):
+                for loop_func in service.loops:
+                    self._loop_tasks.append(
+                        asyncio.create_task(self._run_loop(loop_func))
+                    )
+
+            # Legacy background task hook
+            if service is not self:
+                self._loop_tasks.append(asyncio.create_task(service.run()))
+
+        from eventmodel.models import StopEvent, SystemEvent
+
+        def is_system_handler(handler: Callable) -> bool:
+            try:
+                params = list(inspect.signature(handler).parameters.values())
+            except TypeError, ValueError:
+                return False
+
+            if not params:
+                return False
+
+            event_annotation = params[0].annotation
+            if event_annotation is inspect.Signature.empty:
+                return False
+
+            try:
+                return issubclass(event_annotation, SystemEvent)
+            except TypeError:
+                return False
+
+        broker_routes = {}
+        for topic, handler in self.routes.items():
+            handler_is_system = is_system_handler(handler)
+            if topic.startswith("__sys.") and not handler_is_system:
+                raise ValueError(
+                    f"Topic prefix '__sys.' is reserved for system event routes: {topic}"
+                )
+
+            if not handler_is_system:
+
+                def make_wrapper(orig_handler):
+                    async def broker_wrapper(payload):
+                        emitted_events = await orig_handler(payload)
+                        if not emitted_events:
+                            return None
+                        broker_emits = []
+                        for target_topic, payload_bytes, event_obj in emitted_events:
+                            if isinstance(event_obj, StopEvent):
+                                await self.stop()
+                            elif isinstance(event_obj, SystemEvent):
+                                await self.system_queue.put(event_obj)
+                            else:
+                                broker_emits.append((target_topic, payload_bytes))
+                        return broker_emits
+
+                    return broker_wrapper
+
+                broker_routes[topic] = make_wrapper(handler)
+
+        broker_task = asyncio.create_task(
+            self.broker.listen(broker_routes, exit_on_idle=exit_on_idle)
+        )
+
+        try:
+            await broker_task
+        except asyncio.CancelledError:
+            pass
+
+        for task in self._loop_tasks:
+            task.cancel()
+        await asyncio.gather(*self._loop_tasks, return_exceptions=True)
 
     async def wait_until_idle(self) -> None:
         """
@@ -69,3 +212,10 @@ class App(Service):
         """
         if hasattr(self.broker, "wait_until_idle"):
             await self.broker.wait_until_idle()
+
+    async def stop(self) -> None:
+        """
+        Stop the application and broker.
+        """
+        if hasattr(self.broker, "stop"):
+            await self.broker.stop()
