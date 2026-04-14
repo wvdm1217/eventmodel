@@ -30,8 +30,7 @@ class Service:
 
         def decorator(func: Callable):
             if not (
-                inspect.iscoroutinefunction(func)
-                or inspect.isasyncgenfunction(func)
+                inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
             ):
                 raise TypeError(
                     f"Loop '{getattr(func, '__name__', str(func))}' must be an async function or async generator function."

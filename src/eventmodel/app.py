@@ -51,10 +51,11 @@ class App(Service):
         Manually publish an event to the broker.
         """
         from eventmodel.models import SystemEvent
+
         target_topic = getattr(event, "__topic__", None)
         if not target_topic:
             raise ValueError(f"Event '{event.__class__.__name__}' is missing a topic.")
-        
+
         if isinstance(event, SystemEvent):
             await self.system_queue.put(event)
         else:
@@ -81,7 +82,11 @@ class App(Service):
                     emitted_events = await handler(payload)
 
                     if emitted_events:
-                        for target_topic, payload_bytes, out_event_obj in emitted_events:
+                        for (
+                            target_topic,
+                            payload_bytes,
+                            out_event_obj,
+                        ) in emitted_events:
                             if isinstance(out_event_obj, StopEvent):
                                 await self.stop()
                                 has_stop = True
@@ -90,10 +95,9 @@ class App(Service):
                             else:
                                 await self.publish(out_event_obj)
 
-                    if isinstance(event_obj, AlwaysEvent) and not has_stop:
-                        await self.system_queue.put(AlwaysEvent())
-            except asyncio.CancelledError:
-                break
+                if isinstance(event_obj, AlwaysEvent) and not has_stop:
+                    await self.system_queue.put(AlwaysEvent())
+
             except Exception:
                 logger.exception("Error processing system event")
             finally:
@@ -126,6 +130,7 @@ class App(Service):
 
         # Fire StartEvent automatically
         from eventmodel.models import StartEvent
+
         await self.system_queue.put(StartEvent())
 
         for service in self._included_services + [self]:
@@ -144,7 +149,7 @@ class App(Service):
         def is_system_handler(handler: Callable) -> bool:
             try:
                 params = list(inspect.signature(handler).parameters.values())
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return False
 
             if not params:
@@ -168,6 +173,7 @@ class App(Service):
                 )
 
             if not handler_is_system:
+
                 def make_wrapper(orig_handler):
                     async def broker_wrapper(payload):
                         emitted_events = await orig_handler(payload)
@@ -182,7 +188,9 @@ class App(Service):
                             else:
                                 broker_emits.append((target_topic, payload_bytes))
                         return broker_emits
+
                     return broker_wrapper
+
                 broker_routes[topic] = make_wrapper(handler)
 
         broker_task = asyncio.create_task(

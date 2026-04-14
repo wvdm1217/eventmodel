@@ -32,6 +32,7 @@ class SystemEvent(EventModel):
     These events are processed locally by the Python application
     and do not get published to the external message broker.
     """
+
     __topic__: ClassVar[Optional[str]] = None
 
 
@@ -39,6 +40,7 @@ class StartEvent(SystemEvent, topic="__sys.start__"):
     """
     Fired automatically when the application starts.
     """
+
     pass
 
 
@@ -47,6 +49,7 @@ class AlwaysEvent(SystemEvent, topic="__sys.always__"):
     A special system event that, when handled, automatically re-triggers itself
     after the handler completes, acting as a continuous background loop.
     """
+
     pass
 
 
@@ -54,4 +57,5 @@ class StopEvent(SystemEvent, topic="__sys.stop__"):
     """
     Yield or return this event to signal the application to stop.
     """
+
     pass

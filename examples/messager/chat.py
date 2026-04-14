@@ -32,9 +32,12 @@ async def handle_message_delivered(event: MessageDelivered):
 @app.service()
 async def start_client(start_event: StartEvent) -> tuple[JoinRequest, AlwaysEvent]:
     """Initial event to kick off the client service."""
-    welcome_message = f"Welcome {current_username}! Commands: /list, /msg <user> <message>, /quit"
+    welcome_message = (
+        f"Welcome {current_username}! Commands: /list, /msg <user> <message>, /quit"
+    )
     print(welcome_message)
     return JoinRequest(username=current_username), AlwaysEvent()
+
 
 @app.service()
 async def user_loop(event: AlwaysEvent) -> StopEvent | ListRequest | SendMessage | None:
@@ -44,11 +47,11 @@ async def user_loop(event: AlwaysEvent) -> StopEvent | ListRequest | SendMessage
         line = await asyncio.get_running_loop().run_in_executor(None, input, "> ")
     except EOFError:
         return StopEvent()
-        
+
     line = line.strip()
     if not line:
         return None
-        
+
     if line == "/quit":
         return StopEvent()
     elif line == "/list":
@@ -63,6 +66,7 @@ async def user_loop(event: AlwaysEvent) -> StopEvent | ListRequest | SendMessage
     else:
         print("Unknown command. Use /list, /msg <user> <message>, or /quit")
         return None
+
 
 async def main():
     if len(sys.argv) < 2:
