@@ -62,9 +62,10 @@ async def test_service_wrapper_emits_single_event():
 
     assert result is not None
     assert len(result) == 1
-    topic, payload = result[0]
+    topic, payload, obj = result[0]
     assert topic == "another.topic"
     assert b'"name":"42"' in payload
+    assert isinstance(obj, AnotherEvent)
 
 
 @pytest.mark.asyncio

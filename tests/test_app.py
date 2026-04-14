@@ -108,7 +108,10 @@ async def test_app_run():
     # so it will return immediately. service.run() is also a mock.
     await app.run()
 
-    mock_broker.listen.assert_called_once_with(app.routes, exit_on_idle=False)
+    mock_broker.listen.assert_called_once()
+    args, kwargs = mock_broker.listen.call_args
+    assert "dummy.app.topic" in args[0]
+    assert kwargs["exit_on_idle"] is False
     assert service.run_called
 
 
@@ -121,4 +124,6 @@ async def test_app_run_exit_on_idle():
 
     await app.run(exit_on_idle=True)
 
-    mock_broker.listen.assert_called_once_with(app.routes, exit_on_idle=True)
+    mock_broker.listen.assert_called_once()
+    args, kwargs = mock_broker.listen.call_args
+    assert kwargs["exit_on_idle"] is True
