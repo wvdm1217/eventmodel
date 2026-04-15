@@ -1,27 +1,36 @@
-from events import OrderPlaced
-from services import ecommerce_app
-
-from eventmodel import App
-from eventmodel.logger import logger
+from eventmodel import App, EventModel, StopEvent
 
 app = App()
-app.include(ecommerce_app)
 
+# 1. Define events with embedded routing metadata
+class UserCreated(EventModel, topic="user.events.created"):
+    user_id: int
+    email: str
+
+class SendWelcomeEmail(EventModel, topic="email.queue.outbound"):
+    target_email: str
+    body: str
+
+# 2. Write pure domain logic. 
+# The input type dictates the subscription topic.
+# The return type dictates the emission topic.
+@app.service()
+async def process_new_user(event: UserCreated) -> SendWelcomeEmail:
+    print(f"Processing new user: {event.user_id}")
+    return SendWelcomeEmail(
+        target_email=event.email, 
+        body="Welcome!"
+    )
+
+@app.service()
+async def send_welcome_email(event: SendWelcomeEmail) -> StopEvent:
+    print(f"Sending email to {event.target_email} with body: {event.body}")
+    return StopEvent()
 
 async def main():
-    logger.info("--- Starting E-Commerce Event-Driven Pipeline ---")
-
-    event = OrderPlaced(order_id="ORD-9921", customer_id="CUST-ALPHA", amount=149.99)
-    logger.info(f"[External] Publishing OrderPlaced event for {event.order_id}...")
-    await app.publish(event)
-
-    # Process all messages in the queue and exit when idle
-    await app.run(exit_on_idle=True)
-
-    logger.info("--- Shutting Down ---")
-
+    await app.publish(UserCreated(user_id=123, email="user@example.com"))
+    await app.run()
 
 if __name__ == "__main__":
     import asyncio
-
     asyncio.run(main())

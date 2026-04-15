@@ -127,3 +127,42 @@ async def test_app_run_exit_on_idle():
     mock_broker.listen.assert_called_once()
     args, kwargs = mock_broker.listen.call_args
     assert kwargs["exit_on_idle"] is True
+
+
+@pytest.mark.asyncio
+async def test_app_stops_on_service_return_stopevent():
+    import asyncio
+    from eventmodel.models import StopEvent
+
+    app = App()
+
+    class TriggerStopEvent(EventModel, topic="trigger.stop"):
+        pass
+
+    @app.service()
+    async def handler(event: TriggerStopEvent) -> StopEvent:
+        return StopEvent()
+
+    await app.publish(TriggerStopEvent())
+
+    # Should not block forever. If it does, the test will timeout and fail.
+    await asyncio.wait_for(app.run(), timeout=0.5)
+
+
+@pytest.mark.asyncio
+async def test_app_stops_on_loop_yield_stopevent():
+    import asyncio
+    from eventmodel.models import StopEvent
+
+    app = App()
+
+    @app.loop()
+    async def loop_func():
+        yield StopEvent()
+
+    # Should not block forever. If it does, the test will timeout and fail.
+    try:
+        await asyncio.wait_for(app.run(), timeout=0.5)
+    except TimeoutError:
+        print("Timeout in loop yield!")
+        raise

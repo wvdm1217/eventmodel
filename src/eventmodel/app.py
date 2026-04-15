@@ -199,12 +199,11 @@ class App(Service):
 
         try:
             await broker_task
-        except asyncio.CancelledError:
-            pass
-
-        for task in self._loop_tasks:
-            task.cancel()
-        await asyncio.gather(*self._loop_tasks, return_exceptions=True)
+        finally:
+            for task in self._loop_tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*self._loop_tasks, return_exceptions=True)
 
     async def wait_until_idle(self) -> None:
         """

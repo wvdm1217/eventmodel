@@ -26,7 +26,6 @@ Define your events, type-hint your handlers, and let the framework handle the ro
 from eventmodel import App, EventModel
 
 app = App()
-users_app = App()
 
 # 1. Define events with embedded routing metadata
 class UserCreated(EventModel, topic="user.events.created"):
@@ -40,7 +39,7 @@ class SendWelcomeEmail(EventModel, topic="email.queue.outbound"):
 # 2. Write pure domain logic. 
 # The input type dictates the subscription topic.
 # The return type dictates the emission topic.
-@users_app.service()
+@app.service()
 async def process_new_user(event: UserCreated) -> SendWelcomeEmail:
     print(f"Processing new user: {event.user_id}")
     return SendWelcomeEmail(
@@ -48,7 +47,7 @@ async def process_new_user(event: UserCreated) -> SendWelcomeEmail:
         body="Welcome!"
     )
 
-app.include(users_app)
+@app.run()
 ```
 
 ## Core Concepts
