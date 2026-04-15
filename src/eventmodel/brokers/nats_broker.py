@@ -9,6 +9,7 @@ from nats.aio.subscription import Subscription
 from nats.errors import ConnectionClosedError
 
 from eventmodel.broker import RouteMap
+from eventmodel.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,8 @@ class NatsBroker:
     NATS message broker implementation.
     """
 
-    def __init__(self, url: str = "nats://localhost:4222"):
-        self.url = url
+    def __init__(self, url: str | None = None):
+        self.url = url or settings.nats_url
         self.nc: Optional[Client] = None
         self.subscriptions: list[Subscription] = []
         self._is_listening = False

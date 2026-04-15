@@ -8,7 +8,7 @@ from eventmodel.brokers.nats_broker import NatsBroker
 
 # We use NATS broker to allow multiple terminal processes to communicate.
 # NATS server must be running (e.g., docker run -d -p 4222:4222 nats)
-broker = NatsBroker(url="nats://localhost:4222")
+broker = NatsBroker()
 app = App(broker=broker)
 
 active_users: Set[str] = set()
