@@ -1,5 +1,6 @@
 # EventModel
 
+[![PyPI version](https://badge.fury.io/py/python-eventmodel.svg)](https://badge.fury.io/py/python-eventmodel)
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -12,7 +13,7 @@ Build type-safe, event-driven Python apps with zero boilerplate. Inspired by Fas
 ## Installation
 
 ```bash
-uv add eventmodel
+uv add python-eventmodel
 ```
 
 ## Quick Start

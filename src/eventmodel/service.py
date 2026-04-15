@@ -16,6 +16,7 @@ class Service:
     def __init__(self):
         # Maps topics (strings) to their async wrapper functions
         self.routes: dict[str, Callable] = {}
+        self.loops: list[Callable] = []
 
     async def run(self) -> None:
         """
@@ -23,6 +24,23 @@ class Service:
         Can be overridden by subclasses to run background workers.
         """
         pass
+
+    def loop(self):
+        """
+        Decorator to register a background loop function or async generator.
+        """
+
+        def decorator(func: Callable):
+            if not (
+                inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
+            ):
+                raise TypeError(
+                    f"Loop '{getattr(func, '__name__', str(func))}' must be an async function or async generator function."
+                )
+            self.loops.append(func)
+            return func
+
+        return decorator
 
     def service(self):
         """
@@ -61,13 +79,17 @@ class Service:
             validated_func = validate_call(func)
 
             # 3. Create the execution wrapper
-            async def wrapper(raw_message_data: dict) -> list[tuple[str, bytes]] | None:
+            async def wrapper(
+                raw_message_data: dict,
+            ) -> list[tuple[str, bytes, EventModel]] | None:
                 # Extract OTel trace context propagated from the producer (no-op
                 # when OTel is not installed).  The __otel__ key is popped so the
                 # remaining dict is a clean EventModel payload.
                 ctx = tracing.extract_context(raw_message_data)
 
-                with tracing.trace_handler(subscribe_to, getattr(func, "__name__", str(func)), ctx):
+                with tracing.trace_handler(
+                    subscribe_to, getattr(func, "__name__", str(func)), ctx
+                ):
                     # Execute domain logic
                     event_instance = input_type(**raw_message_data)
                     result = await validated_func(event_instance)
@@ -97,7 +119,7 @@ class Service:
                             payload = json.dumps(data, separators=(",", ":")).encode(
                                 "utf-8"
                             )
-                            emitted.append((target_topic, payload))
+                            emitted.append((target_topic, payload, event_obj))
 
                         return emitted
                     return None

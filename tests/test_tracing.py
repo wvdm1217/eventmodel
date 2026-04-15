@@ -20,7 +20,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from eventmodel import tracing
 from eventmodel.app import App
-from eventmodel.broker import AsyncioBroker
+from eventmodel.brokers.asyncio_broker import AsyncioBroker
 from eventmodel.models import EventModel
 from eventmodel.service import Service
 
@@ -142,7 +142,7 @@ async def test_service_handler_emitted_events_carry_context():
 
     assert result is not None
     assert len(result) == 1
-    _, payload = result[0]
+    _, payload, _ = result[0]
 
     data = json.loads(payload)
     assert tracing._CARRIER_KEY in data, "emitted event payload must carry OTel context"
@@ -172,7 +172,7 @@ async def test_trace_propagates_across_handler_chain():
     result_a = await wrapper_a({"value": 3})
 
     assert result_a is not None
-    _, sink_payload = result_a[0]
+    _, sink_payload, _ = result_a[0]
 
     sink_data = json.loads(sink_payload)
 

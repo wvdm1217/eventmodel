@@ -1,6 +1,6 @@
 [project]
-name = "eventmodel"
-version = "0.0.0-alpha.1"
+name = "python-eventmodel"
+version = "0.0.0-alpha.2"
 description = "Build type-safe, event-driven Python apps with zero boilerplate."
 readme = "README.md"
 authors = [
@@ -20,6 +20,9 @@ otel = [
 requires = ["uv_build>=0.11.6,<0.12.0"]
 build-backend = "uv_build"
 
+[tool.uv.build-backend]
+module-name = "eventmodel"
+
 [dependency-groups]
 dev = [
     "opentelemetry-api>=1.0.0",
@@ -29,3 +32,11 @@ dev = [
     "ruff>=0.15.10",
     "ty>=0.0.29",
 ]
+nats = [
+    "nats-py>=2.14.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
