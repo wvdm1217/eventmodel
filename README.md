@@ -23,7 +23,7 @@ uv add python-eventmodel
 Define your events, type-hint your handlers, and let the framework handle the routing.
 
 ```python
-from eventmodel import App, EventModel
+from eventmodel import App, EventModel, StopEvent
 
 app = App()
 
@@ -47,7 +47,28 @@ async def process_new_user(event: UserCreated) -> SendWelcomeEmail:
         body="Welcome!"
     )
 
-@app.run()
+@app.service()
+async def send_welcome_email(event: SendWelcomeEmail) -> StopEvent:
+    print(f"Sending email to {event.target_email} with body: {event.body}")
+    return StopEvent()
+
+
+app.publish(UserCreated(user_id=123, email="user@example.com"))
+app.run()
+```
+
+### Synchronous Handlers
+
+EventModel is fully compatible with synchronous code. You can use standard `def` functions for your handlers instead of `async def`, and the framework will automatically execute them safely without blocking the main async event loop.
+
+```python
+@app.service()
+def sync_process_new_user(event: UserCreated) -> SendWelcomeEmail:
+    print(f"Sync processing user: {event.user_id}")
+    return SendWelcomeEmail(
+        target_email=event.email, 
+        body="Welcome from sync!"
+    )
 ```
 
 ## Core Concepts

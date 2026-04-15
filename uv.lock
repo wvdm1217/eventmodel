@@ -174,7 +174,7 @@ wheels = [
 
 [[package]]
 name = "python-eventmodel"
-version = "0.0.0a2"
+version = "0.0.0a3"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },

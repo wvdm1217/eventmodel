@@ -82,12 +82,12 @@ class AsyncioBroker:
         """
         current_task = asyncio.current_task()
         other_tasks = [t for t in self.tasks if t is not current_task]
-        
+
         for task in other_tasks:
             task.cancel()
-            
+
         if other_tasks:
             await asyncio.gather(*other_tasks, return_exceptions=True)
-            
+
         if current_task in self.tasks:
             current_task.cancel()

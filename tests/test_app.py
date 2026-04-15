@@ -71,6 +71,21 @@ async def test_app_publish_event():
     assert b'"value":123' in args[1]
 
 
+def test_app_publish_event_sync():
+    mock_broker = MagicMock(spec=Broker)
+    mock_broker.publish = AsyncMock()
+
+    app = App(broker=mock_broker)
+
+    event = DummyEvent(value=123)
+    app.publish(event)  # called synchronously without await
+
+    mock_broker.publish.assert_called_once()
+    args = mock_broker.publish.call_args[0]
+    assert args[0] == "dummy.app.topic"
+    assert b'"value":123' in args[1]
+
+
 @pytest.mark.asyncio
 async def test_app_publish_event_missing_topic():
     app = App()
@@ -107,6 +122,36 @@ async def test_app_run():
     # However, app.run() awaits gather on tasks. The broker.listen() here is a mock,
     # so it will return immediately. service.run() is also a mock.
     await app.run()
+
+    mock_broker.listen.assert_called_once()
+    args, kwargs = mock_broker.listen.call_args
+    assert "dummy.app.topic" in args[0]
+    assert kwargs["exit_on_idle"] is False
+    assert service.run_called
+
+
+def test_app_run_sync():
+    mock_broker = MagicMock(spec=Broker)
+    mock_broker.listen = AsyncMock()
+
+    app = App(broker=mock_broker)
+
+    class MockService(Service):
+        run_called: bool = False
+
+        async def run(self) -> None:
+            self.run_called = True
+
+    service = MockService()
+
+    @service.service()
+    async def handler(event: DummyEvent) -> None:
+        pass
+
+    app.include(service)
+
+    # test sync run
+    app.run()
 
     mock_broker.listen.assert_called_once()
     args, kwargs = mock_broker.listen.call_args

@@ -46,9 +46,9 @@ class App(Service):
             self.routes[topic] = wrapper
             logger.info(f"Mounted listener for: '{topic}'")
 
-    async def publish(self, event) -> None:
+    async def _publish_async(self, event) -> None:
         """
-        Manually publish an event to the broker.
+        Manually publish an event to the broker asynchronously.
         """
         from eventmodel.models import SystemEvent
 
@@ -60,6 +60,18 @@ class App(Service):
             await self.system_queue.put(event)
         else:
             await self.broker.publish(target_topic, event.to_message_payload())
+
+    def publish(self, event):
+        """
+        Manually publish an event to the broker.
+        If an event loop is running, returns a coroutine.
+        Otherwise, runs synchronously.
+        """
+        try:
+            asyncio.get_running_loop()
+            return self._publish_async(event)
+        except RuntimeError:
+            return asyncio.run(self._publish_async(event))
 
     async def _system_event_loop(self):
         from eventmodel.models import AlwaysEvent, StopEvent, SystemEvent
@@ -118,9 +130,9 @@ class App(Service):
         except asyncio.CancelledError:
             pass
 
-    async def run(self, exit_on_idle: bool = False) -> None:
+    async def _run_async(self, exit_on_idle: bool = False) -> None:
         """
-        Start the broker listener loop and all included services in the background.
+        Start the broker listener loop and all included services in the background asynchronously.
         """
         logger.info("Starting event listener loop and services...")
         self._loop_tasks = []
@@ -204,6 +216,18 @@ class App(Service):
                 if not task.done():
                     task.cancel()
             await asyncio.gather(*self._loop_tasks, return_exceptions=True)
+
+    def run(self, exit_on_idle: bool = False):
+        """
+        Start the broker listener loop and all included services in the background.
+        If an event loop is running, returns a coroutine.
+        Otherwise, runs synchronously.
+        """
+        try:
+            asyncio.get_running_loop()
+            return self._run_async(exit_on_idle=exit_on_idle)
+        except RuntimeError:
+            return asyncio.run(self._run_async(exit_on_idle=exit_on_idle))
 
     async def wait_until_idle(self) -> None:
         """

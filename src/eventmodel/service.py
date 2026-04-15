@@ -1,4 +1,5 @@
 import inspect
+import asyncio
 from typing import Callable
 
 from pydantic import validate_call
@@ -77,12 +78,18 @@ class Service:
             validated_func = validate_call(func)
 
             # 3. Create the execution wrapper
+            is_async = inspect.iscoroutinefunction(func)
+
             async def wrapper(
                 raw_message_data: dict,
             ) -> list[tuple[str, bytes, EventModel]] | None:
                 # Execute domain logic
                 event_instance = input_type(**raw_message_data)
-                result = await validated_func(event_instance)
+
+                if is_async:
+                    result = await validated_func(event_instance)
+                else:
+                    result = await asyncio.to_thread(validated_func, event_instance)
 
                 # Intercept return and handle fan-out emission
                 if result:

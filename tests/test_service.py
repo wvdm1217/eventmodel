@@ -49,6 +49,25 @@ async def test_service_wrapper_execution():
 
 
 @pytest.mark.asyncio
+async def test_service_wrapper_execution_sync():
+    service = Service()
+
+    handled_value = None
+
+    @service.service()
+    def handle_dummy(event: DummyEvent) -> None:
+        nonlocal handled_value
+        handled_value = event.value
+
+    wrapper = service.routes["dummy.topic"]
+
+    result = await wrapper({"value": 42})
+
+    assert handled_value == 42
+    assert result is None
+
+
+@pytest.mark.asyncio
 async def test_service_wrapper_emits_single_event():
     service = Service()
 
