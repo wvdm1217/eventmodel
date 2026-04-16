@@ -17,6 +17,20 @@ def test_service_initialization():
     assert service.routes == {}
 
 
+def test_service_decorator_collision():
+    service = Service()
+
+    @service.service()
+    async def handler1(event: DummyEvent) -> None:
+        pass
+
+    with pytest.raises(ValueError, match="Routing collision"):
+
+        @service.service()
+        async def handler2(event: DummyEvent) -> None:
+            pass
+
+
 def test_service_decorator_registers_route():
     service = Service()
 

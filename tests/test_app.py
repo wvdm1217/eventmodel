@@ -17,6 +17,7 @@ def test_app_initialization():
     assert app.broker is not None
     assert app._included_services == []
     assert app.routes == {}
+    assert app._loop_tasks == []
 
 
 def test_app_include_service():

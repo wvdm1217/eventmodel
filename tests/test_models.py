@@ -2,6 +2,11 @@ import pytest
 from eventmodel.models import EventModel
 
 
+def test_public_api_exports():
+    """Ensure all user-facing event types are importable from the root package."""
+    from eventmodel import AlwaysEvent, EventModel, StartEvent, StopEvent, SystemEvent  # noqa: F401
+
+
 class UserCreated(EventModel, topic="user.events.created"):
     """Example event model for testing topic routing and payload serialization."""
 
