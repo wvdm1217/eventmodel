@@ -24,15 +24,15 @@ def test_app_initialization():
 def test_app_worker_count():
     # Test default from settings
     app1 = App()
-    assert app1.worker_count == 3
+    assert app1.worker_count == 5
     assert isinstance(app1.broker, AsyncioBroker)
-    assert app1.broker.worker_count == 3
+    assert app1.broker.worker_count == 5
 
     # Test explicit override
-    app2 = App(worker_count=5)
-    assert app2.worker_count == 5
+    app2 = App(worker_count=3)
+    assert app2.worker_count == 3
     assert isinstance(app2.broker, AsyncioBroker)
-    assert app2.broker.worker_count == 5
+    assert app2.broker.worker_count == 3
 
 
 def test_app_worker_count_from_env(monkeypatch):
