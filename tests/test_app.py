@@ -4,6 +4,7 @@ import pytest
 
 from eventmodel.app import App
 from eventmodel.broker import Broker
+from eventmodel.brokers.asyncio_broker import AsyncioBroker
 from eventmodel.models import EventModel
 from eventmodel.service import Service
 
@@ -18,6 +19,35 @@ def test_app_initialization():
     assert app._included_services == []
     assert app.routes == {}
     assert app._loop_tasks == []
+
+
+def test_app_worker_count():
+    # Test default from settings
+    app1 = App()
+    assert app1.worker_count == 3
+    assert isinstance(app1.broker, AsyncioBroker)
+    assert app1.broker.worker_count == 3
+
+    # Test explicit override
+    app2 = App(worker_count=5)
+    assert app2.worker_count == 5
+    assert isinstance(app2.broker, AsyncioBroker)
+    assert app2.broker.worker_count == 5
+
+
+def test_app_worker_count_from_env(monkeypatch):
+    monkeypatch.setenv("WORKER_COUNT", "10")
+
+    # Re-instantiate settings to pick up new env var
+    import eventmodel.config
+    from eventmodel.config import EventModelSettings
+
+    monkeypatch.setattr(eventmodel.config, "settings", EventModelSettings())
+
+    app = App()
+    assert app.worker_count == 10
+    assert isinstance(app.broker, AsyncioBroker)
+    assert app.broker.worker_count == 10
 
 
 def test_app_include_service():
@@ -178,6 +208,7 @@ async def test_app_run_exit_on_idle():
 @pytest.mark.asyncio
 async def test_app_stops_on_service_return_stopevent():
     import asyncio
+
     from eventmodel.models import StopEvent
 
     app = App()
@@ -198,6 +229,7 @@ async def test_app_stops_on_service_return_stopevent():
 @pytest.mark.asyncio
 async def test_app_stops_on_loop_yield_stopevent():
     import asyncio
+
     from eventmodel.models import StopEvent
 
     app = App()

@@ -12,9 +12,10 @@ class AsyncioBroker:
     Default in-memory message broker using asyncio.Queue.
     """
 
-    def __init__(self):
+    def __init__(self, worker_count: int = 3):
         self.queue: asyncio.Queue[tuple[str, bytes]] = asyncio.Queue()
         self.tasks: list[asyncio.Task] = []
+        self.worker_count = worker_count
 
     async def publish(self, topic: str, message: bytes) -> None:
         await self.queue.put((topic, message))
@@ -55,8 +56,8 @@ class AsyncioBroker:
                 except Exception:
                     logger.exception("Error processing message")
 
-        # Start a few workers
-        for _ in range(3):
+        # Start workers based on configured worker_count
+        for _ in range(self.worker_count):
             task = asyncio.create_task(worker())
             self.tasks.append(task)
 
