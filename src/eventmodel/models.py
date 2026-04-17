@@ -33,8 +33,6 @@ class SystemEvent(EventModel):
     and do not get published to the external message broker.
     """
 
-    __topic__: ClassVar[Optional[str]] = None
-
 
 class StartEvent(SystemEvent, topic="__sys.start__"):
     """
