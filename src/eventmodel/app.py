@@ -38,6 +38,7 @@ class App(Service):
             self.broker = broker
 
         self._included_services: list[Service] = []
+        self._loop_tasks: list[asyncio.Task] = []
 
     def include(self, service: Service) -> None:
         """
@@ -112,7 +113,7 @@ class App(Service):
                             elif isinstance(out_event_obj, SystemEvent):
                                 await self.system_queue.put(out_event_obj)
                             else:
-                                await self.publish(out_event_obj)
+                                await self._publish_async(out_event_obj)
 
                 if isinstance(event_obj, AlwaysEvent) and not has_stop:
                     await self.system_queue.put(AlwaysEvent())
@@ -131,7 +132,7 @@ class App(Service):
                     if isinstance(event, StopEvent):
                         await self.stop()
                         break
-                    await self.publish(event)
+                    await self._publish_async(event)
             else:
                 await loop_func()
         except asyncio.CancelledError:
@@ -168,7 +169,7 @@ class App(Service):
         def is_system_handler(handler: Callable) -> bool:
             try:
                 params = list(inspect.signature(handler).parameters.values())
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 return False
 
             if not params:

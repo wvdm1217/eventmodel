@@ -1,5 +1,6 @@
 import inspect
 import asyncio
+import functools
 from typing import Callable
 
 from pydantic import validate_call
@@ -80,6 +81,7 @@ class Service:
             # 3. Create the execution wrapper
             is_async = inspect.iscoroutinefunction(func)
 
+            @functools.wraps(func)
             async def wrapper(
                 raw_message_data: dict,
             ) -> list[tuple[str, bytes, EventModel]] | None:
@@ -114,7 +116,11 @@ class Service:
                     return emitted
                 return None
 
-            # 4. Register the route
+            # 4. Register the route, failing fast on collision
+            if subscribe_to in self.routes:
+                raise ValueError(
+                    f"Routing collision: A handler is already registered for topic '{subscribe_to}'"
+                )
             self.routes[subscribe_to] = wrapper
             return wrapper
 
