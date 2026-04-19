@@ -10,7 +10,9 @@
 		"vscode": {
 			"extensions": [
 				"charliermarsh.ruff",
-				"astral-sh.ty"
+				"astral-sh.ty",
+				"github.vscode-github-actions",
+				"GitHub.vscode-pull-request-github"
 			]
 		}
 	}
