@@ -24,7 +24,7 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
       
     - name: Install project
-      run: uv sync --all-extras --dev
+      run: uv sync --all-extras --all-groups
       
     - name: Check formatting with Ruff
       run: uv run ruff format --check
