@@ -7,7 +7,13 @@ from eventmodel.broker import Broker
 from eventmodel.brokers.asyncio_broker import AsyncioBroker
 from eventmodel.config import settings
 from eventmodel.logger import logger
-from eventmodel.models import AlwaysEvent, EventModel, StartEvent, StopEvent, SystemEvent
+from eventmodel.models import (
+    AlwaysEvent,
+    EventModel,
+    StartEvent,
+    StopEvent,
+    SystemEvent,
+)
 from eventmodel.service import Service
 
 __all__ = [

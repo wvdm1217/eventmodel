@@ -169,7 +169,7 @@ class App(Service):
         def is_system_handler(handler: Callable) -> bool:
             try:
                 params = list(inspect.signature(handler).parameters.values())
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 return False
 
             if not params:
