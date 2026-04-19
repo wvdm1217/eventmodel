@@ -181,6 +181,11 @@ dependencies = [
     { name = "pydantic-settings" },
 ]
 
+[package.optional-dependencies]
+nats = [
+    { name = "nats-py" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
@@ -188,15 +193,14 @@ dev = [
     { name = "ruff" },
     { name = "ty" },
 ]
-nats = [
-    { name = "nats-py" },
-]
 
 [package.metadata]
 requires-dist = [
+    { name = "nats-py", marker = "extra == 'nats'", specifier = ">=2.14.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
 ]
+provides-extras = ["nats"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -205,7 +209,6 @@ dev = [
     { name = "ruff", specifier = ">=0.15.10" },
     { name = "ty", specifier = ">=0.0.29" },
 ]
-nats = [{ name = "nats-py", specifier = ">=2.14.0" }]
 
 [[package]]
 name = "ruff"
