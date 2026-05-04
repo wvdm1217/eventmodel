@@ -15,6 +15,7 @@ from eventmodel.models import (
     SystemEvent,
 )
 from eventmodel.service import Service
+from eventmodel.tracing import get_tracer
 
 __all__ = [
     "EventModel",
@@ -28,4 +29,5 @@ __all__ = [
     "AsyncioBroker",
     "logger",
     "settings",
+    "get_tracer",
 ]

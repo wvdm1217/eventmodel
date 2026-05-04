@@ -8,7 +8,7 @@
 | Medium | Broker Adapters | Implement generic message broker adapters (Kafka/Redis/RabbitMQ) | Draft |
 | Medium | Error Handling | Implement Error Handling and Dead Letter Queue (DLQ) support in service wrapper | Draft |
 | Medium | Error Handling | Add support for automatic retries with exponential backoff on event processing failures | Draft |
-| Medium | Observability | Add OpenTelemetry / Distributed Tracing support for tracking event flows | Draft |
+| Medium | Observability | Add OpenTelemetry / Distributed Tracing support for tracking event flows | Done |
 | Medium | Core Framework | Add concurrency control (e.g., max concurrent executions) for event consumption | Draft |
 | Medium | Documentation | Initialize MkDocs/Sphinx for `docs.eventmodel.app` source code documentation | Draft |
 | Low | Interoperability | Add support for the CloudEvents specification | Draft |
