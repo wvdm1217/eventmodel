@@ -80,41 +80,79 @@ class Service:
 
             # 3. Create the execution wrapper
             is_async = inspect.iscoroutinefunction(func)
+            handler_name = getattr(func, "__name__", str(func))
 
             @functools.wraps(func)
             async def wrapper(
                 raw_message_data: dict,
+                _handler_name: str = handler_name,
+                _subscribe_to: str = subscribe_to,
+                _input_type: type = input_type,
             ) -> list[tuple[str, bytes, EventModel]] | None:
-                # Execute domain logic
-                event_instance = input_type(**raw_message_data)
+                from eventmodel.tracing import extract_trace_context, get_tracer
 
-                if is_async:
-                    result = await validated_func(event_instance)
-                else:
-                    result = await asyncio.to_thread(validated_func, event_instance)
+                # Extract and strip any embedded W3C TraceContext from the payload
+                # so that strict Pydantic models never see the ``_otel_*`` keys.
+                clean_data, parent_ctx = extract_trace_context(raw_message_data)
 
-                # Intercept return and handle fan-out emission
-                if result:
-                    events = result if isinstance(result, (tuple, list)) else (result,)
-                    emitted = []
+                tracer = get_tracer()
 
-                    for event_obj in events:
-                        if not isinstance(event_obj, EventModel):
-                            raise TypeError(
-                                f"Returned object {type(event_obj)} is not an EventModel."
-                            )
+                async def _execute():
+                    # Execute domain logic
+                    event_instance = _input_type(**clean_data)
 
-                        target_topic = getattr(event_obj, "__topic__", None)
-                        if not target_topic:
-                            raise ValueError(
-                                f"Returned Event '{event_obj.__class__.__name__}' is missing a topic."
-                            )
+                    if is_async:
+                        result = await validated_func(event_instance)
+                    else:
+                        result = await asyncio.to_thread(validated_func, event_instance)
 
-                        payload = event_obj.to_message_payload()
-                        emitted.append((target_topic, payload, event_obj))
+                    # Intercept return and handle fan-out emission
+                    if result:
+                        events = (
+                            result if isinstance(result, (tuple, list)) else (result,)
+                        )
+                        emitted = []
 
-                    return emitted
-                return None
+                        for event_obj in events:
+                            if not isinstance(event_obj, EventModel):
+                                raise TypeError(
+                                    f"Returned object {type(event_obj)} is not an EventModel."
+                                )
+
+                            target_topic = getattr(event_obj, "__topic__", None)
+                            if not target_topic:
+                                raise ValueError(
+                                    f"Returned Event '{event_obj.__class__.__name__}' is missing a topic."
+                                )
+
+                            payload = event_obj.to_message_payload()
+                            emitted.append((target_topic, payload, event_obj))
+
+                        return emitted
+                    return None
+
+                if tracer is None:
+                    return await _execute()
+
+                # Instrument with a CONSUMER span, restoring the producer's context.
+                from opentelemetry.trace import SpanKind, StatusCode
+
+                with tracer.start_as_current_span(
+                    f"process {_subscribe_to}",
+                    context=parent_ctx,
+                    kind=SpanKind.CONSUMER,
+                    attributes={
+                        "messaging.system": "eventmodel",
+                        "messaging.destination": _subscribe_to,
+                        "messaging.operation": "process",
+                        "eventmodel.handler": _handler_name,
+                    },
+                ) as span:
+                    try:
+                        return await _execute()
+                    except Exception as exc:
+                        span.set_status(StatusCode.ERROR, str(exc))
+                        raise
 
             # 4. Register the route, failing fast on collision
             if subscribe_to in self.routes:

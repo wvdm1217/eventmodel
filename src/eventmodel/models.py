@@ -22,8 +22,19 @@ class EventModel(BaseModel):
             cls.__topic__ = topic
 
     def to_message_payload(self) -> bytes:
-        """Serializes the Pydantic model into a raw byte payload for brokers."""
-        return self.model_dump_json().encode("utf-8")
+        """
+        Serialize the model into a raw byte payload for brokers.
+
+        If an active OpenTelemetry span exists the current W3C TraceContext is
+        embedded as ``_otel_*`` fields so that consuming services can restore
+        the trace lineage without requiring a separate headers channel.
+        """
+        from eventmodel.tracing import inject_trace_context
+
+        data = inject_trace_context(self.model_dump())
+        import json
+
+        return json.dumps(data, separators=(",", ":")).encode("utf-8")
 
 
 class SystemEvent(EventModel):

@@ -79,3 +79,67 @@ def sync_process_new_user(event: UserCreated) -> SendWelcomeEmail:
 4. **Clean Architecture:** Domain functions remain entirely pure. They take an `EventModel` as input and return an `EventModel` as output—no broker logic mixed in.
 5. **Modular Routing:** The framework supports `Service` instances that can be merged into a master `App` via `app.include()`.
 
+## OpenTelemetry Integration
+
+EventModel has built-in, zero-configuration OpenTelemetry support. Install the optional extra to activate it:
+
+```bash
+uv add "python-eventmodel[otel]"
+```
+
+Once `opentelemetry-api` is present the framework automatically:
+
+- Creates a **PRODUCER span** (`messaging.operation=publish`) every time an event is published via `app.publish()` or emitted from a handler.
+- Creates a **CONSUMER span** (`messaging.operation=process`) every time a handler processes an event, annotated with the topic and handler name.
+- **Propagates the W3C TraceContext** through the message payload so that all spans across an entire event chain share a single `trace_id` — even when events traverse an external broker like NATS.
+
+No changes to your domain code are required.
+
+### Wiring up an exporter
+
+EventModel uses the standard OpenTelemetry global `TracerProvider`. Configure it once at startup with any exporter you like:
+
+```python
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+provider = TracerProvider()
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+trace.set_tracer_provider(provider)
+
+# Now import and run your app — all spans flow to the exporter automatically.
+from eventmodel import App, EventModel, StopEvent
+...
+```
+
+A self-contained console-exporter example is available at [`examples/tracing.py`](examples/tracing.py).
+
+### Attaching custom attributes
+
+Use `eventmodel.get_tracer()` to obtain the same tracer the framework uses and add spans or attributes from within your handlers:
+
+```python
+from eventmodel import get_tracer
+
+@app.service()
+async def handle_order(event: OrderPlaced) -> InvoiceCreated:
+    tracer = get_tracer()
+    if tracer:
+        with tracer.start_as_current_span("validate-stock"):
+            # ... domain logic ...
+            pass
+    return InvoiceCreated(...)
+```
+
+### Span attributes reference
+
+| Attribute | Value |
+|---|---|
+| `messaging.system` | `"eventmodel"` |
+| `messaging.destination` | The event topic string |
+| `messaging.operation` | `"publish"` or `"process"` |
+| `eventmodel.handler` | Handler function name (CONSUMER spans only) |
+| `eventmodel.event_type` | Event class name (PRODUCER spans only) |
+
