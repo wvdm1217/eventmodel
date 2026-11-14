@@ -15,7 +15,7 @@ This example demonstrates how to build a multi-process, pub/sub application usin
 
 2.  **Dependencies:** Ensure your `uv` environment includes the `nats` optional dependency group:
     ```bash
-    uv sync --group nats
+    uv sync --extra nats
     ```
 
 ## Running the Example
