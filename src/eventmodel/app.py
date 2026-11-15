@@ -57,17 +57,40 @@ class App(Service):
     async def _publish_async(self, event) -> None:
         """
         Manually publish an event to the broker asynchronously.
+
+        A PRODUCER span is created for each published event so that the
+        downstream consumer can link back to the originating trace.
         """
         from eventmodel.models import SystemEvent
+        from eventmodel.tracing import get_tracer
 
         target_topic = getattr(event, "__topic__", None)
         if not target_topic:
             raise ValueError(f"Event '{event.__class__.__name__}' is missing a topic.")
 
-        if isinstance(event, SystemEvent):
-            await self.system_queue.put(event)
+        tracer = get_tracer()
+        if tracer is not None:
+            from opentelemetry.trace import SpanKind
+
+            with tracer.start_as_current_span(
+                f"publish {target_topic}",
+                kind=SpanKind.PRODUCER,
+                attributes={
+                    "messaging.system": "eventmodel",
+                    "messaging.destination": target_topic,
+                    "messaging.operation": "publish",
+                    "eventmodel.event_type": event.__class__.__name__,
+                },
+            ):
+                if isinstance(event, SystemEvent):
+                    await self.system_queue.put(event)
+                else:
+                    await self.broker.publish(target_topic, event.to_message_payload())
         else:
-            await self.broker.publish(target_topic, event.to_message_payload())
+            if isinstance(event, SystemEvent):
+                await self.system_queue.put(event)
+            else:
+                await self.broker.publish(target_topic, event.to_message_payload())
 
     def publish(self, event):
         """
